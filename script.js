@@ -1,6 +1,6 @@
 /**
  * ZIMKNOWS PITCH DECK ENGINE
- * Precision choreography, low-latency video switching, canvas V2X mesh simulation.
+ * Precision choreography, low-latency video switching, top-down V2X caterpillar mesh simulation.
  */
 
 (function () {
@@ -15,9 +15,9 @@
   const slideSteps = {
     1: 4, // 0: Init, 1: Vid1, 2: Vid2, 3: Vid3, 4: "Our roads are dark"
     2: 0, // 0: All stats shown with counters
-    3: 2, // 0: Mesh animation, 1: Caterpillar reveal, 2: 4 Pillars & Quote
+    3: 2, // 0: Top-down Mesh animation, 1: Caterpillar reveal, 2: 4 Pillars & Quote
     4: 2, // 0: Dead zones intro, 1: QR code, 2: System screenshots
-    5: 2  // 0: Ask breakdown, 1: NUST solo reveal, 2: Team & final QR
+    5: 2  // 0: Pathway & Sandboxes, 1: NUST solo reveal, 2: Team & final QR
   };
 
   // Timer State
@@ -81,7 +81,7 @@
       }
     }
 
-    // 3. Fallback: Check if any slide is already marked 'active' in DOM
+    // 3. Fallback: Check if any slide is marked 'active' in DOM
     const activeSection = document.querySelector('.slide.active');
     if (activeSection && activeSection.dataset.slideIndex) {
       currentSlide = parseInt(activeSection.dataset.slideIndex, 10) || 1;
@@ -95,11 +95,6 @@
       v.preload = 'auto';
       v.playsInline = true;
       v.muted = isMuted;
-
-      // When video ends, keep last frame
-      v.addEventListener('ended', () => {
-        // Optional subtle auto-advance can be placed here if desired
-      });
     });
   }
 
@@ -248,25 +243,21 @@
     if (subStep === 0) {
       pauseAllVideos();
     } else if (subStep === 1) {
-      // Play Video 1
       playTargetVideo(vid1);
       vCard1.classList.add('active-playback');
       vCard2.classList.add('dimmed');
       vCard3.classList.add('dimmed');
     } else if (subStep === 2) {
-      // Play Video 2
       playTargetVideo(vid2);
       vCard2.classList.add('active-playback');
       vCard1.classList.add('dimmed');
       vCard3.classList.add('dimmed');
     } else if (subStep === 3) {
-      // Play Video 3
       playTargetVideo(vid3);
       vCard3.classList.add('active-playback');
       vCard1.classList.add('dimmed');
       vCard2.classList.add('dimmed');
     } else if (subStep === 4) {
-      // Show "Our roads are dark."
       pauseAllVideos();
       climax.classList.add('visible');
     }
@@ -298,7 +289,6 @@
 
   // --- SLIDE 2 HANDLER (STATS COUNTER) ---
   function updateSlide2() {
-    // Animate numbers up
     animateCounter('statCountAccidents', 142, '', 1000);
     animateCounter('statCountDeaths', 1014, '+', 1200);
     animateCounter('statCountData', 37690, ' TB', 1200);
@@ -314,7 +304,7 @@
 
     function frame(now) {
       const progress = Math.min((now - startTime) / duration, 1);
-      const easeVal = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+      const easeVal = 1 - Math.pow(1 - progress, 3);
       const current = Math.floor(easeVal * targetValue);
       el.textContent = current.toLocaleString() + suffix;
 
@@ -328,9 +318,16 @@
   }
 
   // --- SLIDE 3 HANDLER ---
+  let triggerMeshResize = null;
+
   function updateSlide3() {
     const catCard = document.getElementById('caterpillarCard');
     const pillarsOverlay = document.getElementById('pillarsOverlay');
+
+    // Trigger canvas size recheck immediately when Slide 3 becomes active
+    if (triggerMeshResize) {
+      setTimeout(triggerMeshResize, 50);
+    }
 
     if (subStep === 0) {
       catCard.classList.remove('show');
@@ -371,8 +368,6 @@
       askStage.style.visibility = 'visible';
       nustSolo.classList.remove('show');
       teamFinal.classList.remove('show');
-
-      animateCounter('askCounter', 4000, '', 1000);
     } else if (subStep === 1) {
       askStage.style.opacity = '0';
       askStage.style.visibility = 'hidden';
@@ -485,15 +480,15 @@
     });
 
     const particles = [];
-    const count = 45;
+    const count = 40;
     for (let i = 0; i < count; i++) {
       particles.push({
         x: Math.random() * w,
         y: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: (Math.random() - 0.5) * 0.4,
+        vx: (Math.random() - 0.5) * 0.35,
+        vy: (Math.random() - 0.5) * 0.35,
         radius: Math.random() * 1.5 + 0.5,
-        alpha: Math.random() * 0.5 + 0.2
+        alpha: Math.random() * 0.4 + 0.15
       });
     }
 
@@ -514,15 +509,14 @@
         ctx.fillStyle = `rgba(16, 185, 129, ${p.alpha})`;
         ctx.fill();
 
-        // Connect nearby particles with subtle faint lines
         for (let j = i + 1; j < count; j++) {
           const p2 = particles[j];
           const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
-          if (dist < 110) {
+          if (dist < 100) {
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = `rgba(16, 185, 129, ${0.15 * (1 - dist / 110)})`;
+            ctx.strokeStyle = `rgba(16, 185, 129, ${0.12 * (1 - dist / 100)})`;
             ctx.stroke();
           }
         }
@@ -532,44 +526,194 @@
     animate();
   }
 
-  // --- V2X HIGHWAY MESH CANVAS (SLIDE 3) ---
+  // --- TOP-DOWN V2X HIGHWAY CATERPILLAR MESH CANVAS (SLIDE 3) ---
   function setupMeshHighwayCanvas() {
     const canvas = document.getElementById('meshHighwayCanvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
+    const container = canvas.parentElement;
 
-    let cw = (canvas.width = canvas.parentElement.clientWidth);
-    let ch = (canvas.height = canvas.parentElement.clientHeight);
+    let cw = 0;
+    let ch = 0;
 
-    window.addEventListener('resize', () => {
-      if (!canvas.parentElement) return;
-      cw = canvas.width = canvas.parentElement.clientWidth;
-      ch = canvas.height = canvas.parentElement.clientHeight;
-    });
+    function resizeCanvas() {
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const w = Math.floor(rect.width) || container.clientWidth || 1000;
+      const h = Math.floor(rect.height) || container.clientHeight || 300;
+      if (w > 50 && h > 50 && (canvas.width !== w || canvas.height !== h)) {
+        canvas.width = cw = w;
+        canvas.height = ch = h;
+      }
+    }
 
-    // 3 Cars moving along highway
-    const cars = [
-      { id: 'BUS-01 (Kudzanayi)', x: cw * 0.18, speed: 1.2, color: '#f43f5e', isBus: true },
-      { id: 'CAR-02 (Relay Node)', x: cw * 0.48, speed: 1.5, color: '#10b981', isBus: false },
-      { id: 'CAR-03 (Relay Node)', x: cw * 0.76, speed: 1.3, color: '#38bdf8', isBus: false }
+    triggerMeshResize = resizeCanvas;
+    resizeCanvas();
+
+    window.addEventListener('resize', resizeCanvas);
+    if (window.ResizeObserver) {
+      new ResizeObserver(() => resizeCanvas()).observe(container);
+    }
+
+    // Top-down vehicles cruising along the highway
+    const vehicles = [
+      {
+        id: 'KUDZANAYI BUS',
+        sub: 'Distress Origin (Offline)',
+        x: 120,
+        lane: 0, // top lane (eastbound)
+        speed: 1.1,
+        length: 64,
+        width: 24,
+        color: '#f43f5e',
+        glowColor: 'rgba(244, 63, 94, 0.4)',
+        isBus: true
+      },
+      {
+        id: 'V2X RELAY 01',
+        sub: 'Local Mesh Hop',
+        x: 380,
+        lane: 0,
+        speed: 1.35,
+        length: 44,
+        width: 20,
+        color: '#10b981',
+        glowColor: 'rgba(16, 185, 129, 0.4)',
+        isBus: false
+      },
+      {
+        id: 'V2X RELAY 02',
+        sub: 'Oncoming Hauler Hop',
+        x: 660,
+        lane: 1, // bottom lane (westbound)
+        speed: -1.2,
+        length: 48,
+        width: 21,
+        color: '#38bdf8',
+        glowColor: 'rgba(56, 189, 248, 0.4)',
+        isBus: false
+      },
+      {
+        id: 'V2X RELAY 03',
+        sub: 'Commuter Car Hop',
+        x: 920,
+        lane: 0,
+        speed: 1.4,
+        length: 42,
+        width: 19,
+        color: '#fbbf24',
+        glowColor: 'rgba(251, 191, 36, 0.4)',
+        isBus: false
+      }
     ];
 
-    // Data packet animations
-    let packetT = 0;
+    let packetPhase = 0;
+
+    // Helper: Draw Top-Down Vehicle matching reference image
+    function drawTopDownVehicle(v, cx, cy) {
+      ctx.save();
+      ctx.translate(cx, cy);
+
+      const angle = v.speed >= 0 ? 0 : Math.PI;
+      ctx.rotate(angle);
+
+      const l = v.length;
+      const w = v.width;
+
+      // Glow halo
+      ctx.shadowColor = v.color;
+      ctx.shadowBlur = 10;
+
+      // Chassis Body
+      ctx.fillStyle = '#1e293b';
+      ctx.strokeStyle = v.color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(-l / 2, -w / 2, l, w, [6, 10, 10, 6]);
+      ctx.fill();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Side mirrors (protruding just like reference)
+      ctx.fillStyle = v.color;
+      ctx.beginPath();
+      ctx.ellipse(l * 0.16, -w / 2 - 3, 3, 2, 0, 0, Math.PI * 2);
+      ctx.ellipse(l * 0.16, w / 2 + 3, 3, 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Front Curved Windshield
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.45)';
+      ctx.beginPath();
+      ctx.roundRect(l * 0.08, -w * 0.35, l * 0.18, w * 0.7, [2, 6, 6, 2]);
+      ctx.fill();
+
+      // Center Cabin Roof
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.roundRect(-l * 0.22, -w * 0.35, l * 0.26, w * 0.7, 2);
+      ctx.fill();
+
+      // Rear Window
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.3)';
+      ctx.beginPath();
+      ctx.roundRect(-l * 0.38, -w * 0.32, l * 0.13, w * 0.64, 2);
+      ctx.fill();
+
+      // Headlights (Twin forward beams)
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.ellipse(l / 2 - 2, -w * 0.33, 2, 3, 0, 0, Math.PI * 2);
+      ctx.ellipse(l / 2 - 2, w * 0.33, 2, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Taillights (Twin red rear lights)
+      ctx.fillStyle = '#f43f5e';
+      ctx.beginPath();
+      ctx.ellipse(-l / 2 + 2, -w * 0.33, 2, 3, 0, 0, Math.PI * 2);
+      ctx.ellipse(-l / 2 + 2, w * 0.33, 2, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+
+      // Vehicle HUD Tag (Always upright)
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 11px Outfit';
+      ctx.fillText(v.id, cx - 35, cy - v.width - 12);
+
+      ctx.fillStyle = v.color;
+      ctx.font = '9px JetBrains Mono';
+      ctx.fillText(v.sub, cx - 35, cy - v.width - 2);
+
+      // Local Mesh Radio Radius Ring
+      ctx.strokeStyle = v.glowColor;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 6]);
+      ctx.beginPath();
+      ctx.arc(cx, cy, 65, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
 
     function renderMesh() {
+      if (cw === 0 || ch === 0) {
+        resizeCanvas();
+      }
+
       ctx.clearRect(0, 0, cw, ch);
 
-      const roadY = ch * 0.58;
-      const roadH = ch * 0.28;
+      const roadY = ch * 0.48;
+      const laneH = 55;
+      const roadH = laneH * 2;
+      const lane0Y = roadY + laneH * 0.5;
+      const lane1Y = roadY + laneH * 1.5;
 
-      // Draw Highway Tarmac
+      // Road Surface
       ctx.fillStyle = '#0b111e';
       ctx.fillRect(0, roadY, cw, roadH);
 
-      // Highway Edges
-      ctx.strokeStyle = '#1e293b';
-      ctx.lineWidth = 2;
+      // Solid Outer Road Boundary Lines
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(0, roadY);
       ctx.lineTo(cw, roadY);
@@ -577,121 +721,130 @@
       ctx.lineTo(cw, roadY + roadH);
       ctx.stroke();
 
-      // Dashed Center Divider
-      ctx.setLineDash([20, 15]);
-      ctx.strokeStyle = '#334155';
-      ctx.lineWidth = 2;
+      // Dashed Center Divider Line
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([24, 18]);
       ctx.beginPath();
-      ctx.moveTo(0, roadY + roadH / 2);
-      ctx.lineTo(cw, roadY + roadH / 2);
+      ctx.moveTo(0, roadY + laneH);
+      ctx.lineTo(cw, roadY + laneH);
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Dead Zone Indicators
-      ctx.fillStyle = 'rgba(244, 63, 94, 0.08)';
-      ctx.fillRect(0, 0, cw * 0.72, ch);
-      ctx.fillStyle = 'rgba(244, 63, 94, 0.7)';
-      ctx.font = '11px JetBrains Mono';
-      ctx.fillText('📡 ZERO CELLULAR COVERAGE (SHANGANI DEAD ZONE)', 20, 26);
+      // Dead Zone Watermark
+      ctx.fillStyle = 'rgba(244, 63, 94, 0.06)';
+      ctx.fillRect(0, 0, cw * 0.74, ch);
+      ctx.fillStyle = 'rgba(244, 63, 94, 0.75)';
+      ctx.font = '10px JetBrains Mono';
+      ctx.fillText('⚡ 0% CELLULAR COVERAGE (SHANGANI DEAD ZONE)', 20, 24);
 
-      // Connected Roadside Node (e.g. Tollgate)
-      const tollgateX = cw * 0.92;
-      const tollgateY = roadY - 35;
+      // Roadside Backbone Node (ZINARA Tollgate / Radio Repeater)
+      const beaconX = cw - 80;
+      const beaconY = roadY - 45;
+
+      // Beacon Tower Icon & Rings
+      ctx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(beaconX, beaconY, 14 + (packetPhase * 10), 0, Math.PI * 2);
+      ctx.stroke();
+
       ctx.fillStyle = '#10b981';
       ctx.beginPath();
-      ctx.arc(tollgateX, tollgateY, 8, 0, Math.PI * 2);
+      ctx.arc(beaconX, beaconY, 7, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.fillStyle = '#f8fafc';
       ctx.font = 'bold 11px Outfit';
-      ctx.fillText('ZINARA TOLLGATE', tollgateX - 44, tollgateY - 14);
-      ctx.font = '10px JetBrains Mono';
+      ctx.fillText('ZINARA TOLLGATE', beaconX - 52, beaconY - 14);
       ctx.fillStyle = '#10b981';
-      ctx.fillText('⚡ BACKBONE LINK', tollgateX - 44, tollgateY + 22);
+      ctx.font = '9px JetBrains Mono';
+      ctx.fillText('NEWSROOM UPLINK ↗', beaconX - 52, beaconY + 22);
 
-      // Update & Draw Vehicles
-      cars.forEach((car, idx) => {
-        car.x += car.speed * 0.4;
-        if (car.x > cw - 80) car.x = 40;
+      // Update Vehicle Positions
+      vehicles.forEach((v) => {
+        v.x += v.speed * 0.6;
+        if (v.speed > 0 && v.x > cw - 120) v.x = 40;
+        if (v.speed < 0 && v.x < 40) v.x = cw - 140;
 
-        const cy = roadY + (idx % 2 === 0 ? roadH * 0.28 : roadH * 0.72);
-
-        // Vehicle Headlights
-        const grad = ctx.createRadialGradient(car.x + 30, cy, 5, car.x + 80, cy, 60);
-        grad.addColorStop(0, 'rgba(255, 255, 200, 0.35)');
-        grad.addColorStop(1, 'rgba(255, 255, 200, 0)');
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.moveTo(car.x + 25, cy - 8);
-        ctx.lineTo(car.x + 90, cy - 25);
-        ctx.lineTo(car.x + 90, cy + 25);
-        ctx.lineTo(car.x + 25, cy + 8);
-        ctx.fill();
-
-        // Vehicle Body
-        ctx.fillStyle = car.color;
-        ctx.beginPath();
-        if (car.isBus) {
-          ctx.roundRect(car.x - 25, cy - 12, 50, 24, 6);
-        } else {
-          ctx.roundRect(car.x - 18, cy - 10, 36, 20, 4);
-        }
-        ctx.fill();
-
-        // Label above car
-        ctx.fillStyle = '#cbd5e1';
-        ctx.font = '10px JetBrains Mono';
-        ctx.fillText(car.id, car.x - 30, cy - 18);
-
-        // Vehicle Wi-Fi / LoRa Radius Rings
-        ctx.strokeStyle = `rgba(56, 189, 248, 0.25)`;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(car.x, cy, 70, 0, Math.PI * 2);
-        ctx.stroke();
+        const cy = v.lane === 0 ? lane0Y : lane1Y;
+        drawTopDownVehicle(v, v.x, cy);
       });
 
-      // Draw P2P Mesh Data Link Beams between consecutive cars
-      packetT = (packetT + 0.015) % 1;
-      for (let i = 0; i < cars.length - 1; i++) {
-        const c1 = cars[i];
-        const c2 = cars[i + 1];
-        const y1 = roadY + (i % 2 === 0 ? roadH * 0.28 : roadH * 0.72);
-        const y2 = roadY + ((i + 1) % 2 === 0 ? roadH * 0.28 : roadH * 0.72);
+      // --- DATA CATERPILLAR WAVE HOPPING (BEAMS & PULSES) ---
+      packetPhase = (packetPhase + 0.012) % 1;
 
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([4, 6]);
+      // Sort vehicles by X coordinate to form a continuous hop chain
+      const sortedVehicles = [...vehicles].sort((a, b) => a.x - b.x);
+
+      // Draw Caterpillar Arcs between consecutive nodes
+      for (let i = 0; i < sortedVehicles.length - 1; i++) {
+        const vA = sortedVehicles[i];
+        const vB = sortedVehicles[i + 1];
+        const yA = vA.lane === 0 ? lane0Y : lane1Y;
+        const yB = vB.lane === 0 ? lane0Y : lane1Y;
+
+        // Curved Caterpillar Arch
+        const midX = (vA.x + vB.x) / 2;
+        const midY = Math.min(yA, yB) - 35;
+
+        // Glowing Caterpillar Body Arc
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
         ctx.beginPath();
-        ctx.moveTo(c1.x, y1);
-        ctx.lineTo(c2.x, y2);
+        ctx.moveTo(vA.x, yA);
+        ctx.quadraticCurveTo(midX, midY, vB.x, yB);
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Animated hopping pulse
-        const px = c1.x + (c2.x - c1.x) * packetT;
-        const py = y1 + (y2 - y1) * packetT;
+        // Animated hopping pulse along quadratic curve
+        const t = (packetPhase + i * 0.25) % 1;
+        const px = Math.pow(1 - t, 2) * vA.x + 2 * (1 - t) * t * midX + Math.pow(t, 2) * vB.x;
+        const py = Math.pow(1 - t, 2) * yA + 2 * (1 - t) * t * midY + Math.pow(t, 2) * yB;
 
         ctx.fillStyle = '#38bdf8';
         ctx.shadowColor = '#38bdf8';
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = 12;
         ctx.beginPath();
-        ctx.arc(px, py, 4.5, 0, Math.PI * 2);
+        ctx.arc(px, py, 5, 0, Math.PI * 2);
         ctx.fill();
         ctx.shadowBlur = 0;
+
+        // Hop latency tag
+        if (i === 1) {
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.85)';
+          ctx.font = '9px JetBrains Mono';
+          ctx.fillText('HOP 2: 14ms (P2P)', midX - 35, midY - 6);
+        }
       }
 
-      // Final Hop to Tollgate
-      const lastCar = cars[cars.length - 1];
-      const ly = roadY + ((cars.length - 1) % 2 === 0 ? roadH * 0.28 : roadH * 0.72);
-      ctx.strokeStyle = 'rgba(16, 185, 129, 0.5)';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([4, 6]);
+      // Final Hop: Last vehicle to Tollgate Node
+      const lastV = sortedVehicles[sortedVehicles.length - 1];
+      const lastY = lastV.lane === 0 ? lane0Y : lane1Y;
+
+      ctx.strokeStyle = 'rgba(16, 185, 129, 0.6)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
       ctx.beginPath();
-      ctx.moveTo(lastCar.x, ly);
-      ctx.lineTo(tollgateX, tollgateY);
+      ctx.moveTo(lastV.x, lastY);
+      ctx.quadraticCurveTo((lastV.x + beaconX) / 2, roadY - 50, beaconX, beaconY);
       ctx.stroke();
       ctx.setLineDash([]);
+
+      const tFinal = (packetPhase + 0.75) % 1;
+      const bMidX = (lastV.x + beaconX) / 2;
+      const bMidY = roadY - 50;
+      const fpx = Math.pow(1 - tFinal, 2) * lastV.x + 2 * (1 - tFinal) * tFinal * bMidX + Math.pow(tFinal, 2) * beaconX;
+      const fpy = Math.pow(1 - tFinal, 2) * lastY + 2 * (1 - tFinal) * tFinal * bMidY + Math.pow(tFinal, 2) * beaconY;
+
+      ctx.fillStyle = '#10b981';
+      ctx.shadowColor = '#10b981';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(fpx, fpy, 5.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
 
       requestAnimationFrame(renderMesh);
     }
